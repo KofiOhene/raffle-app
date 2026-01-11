@@ -1,5 +1,4 @@
 import { MongoClient } from 'mongodb';
-console.log('DEBUG: MONGODB_URI =', process.env.MONGODB_URI);
 
 
 const uri = process.env.MONGODB_URI!;
@@ -9,6 +8,7 @@ let client;
 let clientPromise: Promise<MongoClient>;
 
 declare global {
+    // eslint-disable-next-line no-var
     var _mongoClientPromise: Promise<MongoClient>;
 }
 
