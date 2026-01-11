@@ -37,12 +37,17 @@ export default function RaffleForm() {
         const result = await res.json();
 
         if (res.ok) {
-            setStatus('You’re entered! Check your email for your raffle number.');
+            setStatus("You're entered! Check your email for your raffle number.");
         } else {
-            setStatus(result.error || 'Something went wrong. Try again.');
+            // Sanitize error message to prevent XSS - only allow safe characters
+            const errorMsg = typeof result.error === 'string'
+                ? result.error.replace(/[<>]/g, '').substring(0, 200)
+                : 'Something went wrong. Try again.';
+            setStatus(errorMsg);
         }
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const inputStyle = `w-full p-2 rounded bg-transparent focus:outline-none placeholder:opacity-80 ${theme.isDark ? 'text-white' : 'text-black'
         }`;
 

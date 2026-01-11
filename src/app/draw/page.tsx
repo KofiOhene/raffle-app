@@ -10,22 +10,50 @@ export default function DrawPage() {
     const [raffleIds, setRaffleIds] = useState<string[]>([]);
     const [current, setCurrent] = useState('');
     const [winner, setWinner] = useState<string | null>(null);
-    const [isDrawing, setIsDrawing] = useState(true);
+    const [isDrawing, setIsDrawing] = useState(false);
     const [showConfetti, setShowConfetti] = useState(false);
     const [play] = useSound('/balloon-pop.mp3');
     const [theme, setTheme] = useState({ bg: '', text: '' });
+    const [adminKey, setAdminKey] = useState('');
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [authError, setAuthError] = useState('');
+    const [fetchError, setFetchError] = useState('');
 
     useEffect(() => {
         setTheme(getRandomTheme());
-
-        const fetchEntries = async () => {
-            const res = await fetch('/api/get-entries');
-            const data = await res.json();
-            const ids = data.entries.map((entry: any) => entry.raffleId);
-            setRaffleIds(ids);
-        };
-        fetchEntries();
     }, []);
+
+    const handleAuth = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setAuthError('');
+        setFetchError('');
+
+        try {
+            const res = await fetch('/api/get-entries', {
+                headers: {
+                    'Authorization': `Bearer ${adminKey}`,
+                },
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                const ids = data.entries.map((entry: { raffleId: string }) => entry.raffleId);
+                if (ids.length === 0) {
+                    setFetchError('No entries found in the raffle.');
+                    return;
+                }
+                setRaffleIds(ids);
+                setIsAuthenticated(true);
+                setIsDrawing(true);
+            } else if (res.status === 401) {
+                setAuthError('Invalid admin key. Please try again.');
+            } else {
+                setAuthError('Authentication failed. Please try again.');
+            }
+        } catch {
+            setAuthError('Network error. Please check your connection.');
+        }
+    };
 
     useEffect(() => {
         if (raffleIds.length === 0 || !isDrawing) return;
@@ -35,7 +63,7 @@ export default function DrawPage() {
             setCurrent(random);
         }, 300);
 
-        setTimeout(() => {
+        const drawTimeout = setTimeout(() => {
             clearInterval(shuffleInterval);
             const selected = raffleIds[Math.floor(Math.random() * raffleIds.length)];
             setWinner(selected);
@@ -45,13 +73,57 @@ export default function DrawPage() {
 
             fetch('/api/process-winner', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${adminKey}`,
+                },
                 body: JSON.stringify({ winnerId: selected }),
+            }).catch(() => {
+                // Silently fail - winner is still selected
             });
         }, 5000);
 
-        return () => clearInterval(shuffleInterval);
-    }, [raffleIds]);
+        return () => {
+            clearInterval(shuffleInterval);
+            clearTimeout(drawTimeout);
+        };
+    }, [raffleIds, isDrawing, adminKey, play]);
+
+    // Admin login screen
+    if (!isAuthenticated) {
+        return (
+            <div className={`min-h-screen flex flex-col items-center justify-center transition-all duration-300 ${theme.bg} ${theme.text}`}>
+                <h1 className="text-2xl sm:text-4xl font-bold mb-6 text-center">
+                    Admin Access Required
+                </h1>
+                <form onSubmit={handleAuth} className="w-full max-w-sm px-4">
+                    <input
+                        type="password"
+                        value={adminKey}
+                        onChange={(e) => setAdminKey(e.target.value)}
+                        placeholder="Enter Admin Key"
+                        className="w-full p-3 rounded bg-black/20 border border-current text-center mb-4"
+                        required
+                    />
+                    <button
+                        type="submit"
+                        className="w-full p-3 font-bold hover:underline hover:scale-105 transition"
+                    >
+                        Access Draw
+                    </button>
+                </form>
+                {authError && (
+                    <p className="text-red-500 mt-4 text-center">{authError}</p>
+                )}
+                {fetchError && (
+                    <p className="text-yellow-500 mt-4 text-center">{fetchError}</p>
+                )}
+                <Link href="/" className="mt-6 text-xl font-extrabold tracking-tight hover:underline hover:scale-105 transition-all">
+                    ← Back to Home
+                </Link>
+            </div>
+        );
+    }
 
     return (
         <div className={`min-h-screen flex flex-col items-center justify-center transition-all duration-300 ${theme.bg} ${theme.text}`}>

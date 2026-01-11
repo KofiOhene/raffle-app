@@ -16,7 +16,8 @@
     "react-confetti": "^6.4.0",
     "react-dom": "^19.0.0",
     "use-sound": "^5.0.0",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
